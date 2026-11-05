@@ -7,6 +7,7 @@ import (
 	"snakego/backend/game"
 	"fmt"
 	"time"
+	"os"
 )
 
 var addSnakeCh = make(chan struct{})
@@ -49,21 +50,28 @@ func startGameLoop(board *game.Board) {
 	}
 }
 
-
 func addSnake(w http.ResponseWriter, r *http.Request) {
 	addSnakeCh <- struct{}{}
 	w.Write([]byte("snake added"))
 }
 
 
+func quit(w http.ResponseWriter, r *http.Request) {
+	fmt.Print("\033[?25h") // show cursor again
+	fmt.Print("\033[H\033[2J") // clear screen
+	os.Exit(0)
+}
+
+
+
+
 func Routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /quit", quit)
 	mux.HandleFunc("GET /createGame", createGame)
 	mux.HandleFunc("POST /addSnake", addSnake)
 	return mux
 }
-
-
 
 
 func Start() {
