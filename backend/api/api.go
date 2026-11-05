@@ -17,6 +17,13 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 	board0 := game.CreateBoard(letGameSize, letGameSize, 0)
 	snake0 := game.CreateSnake(board0)
 
+
+
+	go startGameLoop(board0, snake0)
+}
+
+func startGameLoop(board *game.Board, snake *game.Snake) {
+
 	keys, restore, err := game.StartInput()
 	if err != nil {
 		panic(err)
@@ -25,22 +32,18 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 
 	ticker := time.NewTicker(167 * time.Millisecond)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case k := <-keys:
-			if k == game.Quit {
-				fmt.Print("\033[?25h")   // show cursor again
-				return
-			}
-			game.UpdateUserDir(board0, snake0, k)
+			game.UpdateUserDir(board, snake, k)
 
 		case <-ticker.C:
-			game.UpdateGame(board0)
-			game.PrintBoard(board0)
+			game.UpdateGame(board)
+			game.PrintBoard(board)
 		}
 	}
 }
+
 
 func Routes() *http.ServeMux {
 	mux := http.NewServeMux()
