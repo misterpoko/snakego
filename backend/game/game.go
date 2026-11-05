@@ -52,6 +52,8 @@ const (
 	COORD_X_SHIFT = 16
 	COORD_Y_SHIFT = 8
 	COORD_FLAG = 0b1111_1111
+	RESETCOORD_FLAG = COORD_FLAG<<COORD_X_SHIFT | COORD_FLAG<<COORD_Y_SHIFT
+
 )
 
 
@@ -79,8 +81,8 @@ func CreateBoard(width, height int) *Board {
 	createPortal(&board)
 
 
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
+	for i := range height {
+		for j := range width {
 			board.Updates = append(board.Updates, &Coord{j, i})
 		}
 	}
@@ -106,31 +108,48 @@ func PrintBoard(board *Board) {
 }
 
 
-func UpdateUserDir(snake *Snake, dir int) {
+func UpdateUserDir(board *Board, snake *Snake, dir int) {
 	currentDir := snake.UserDir
 	if currentDir ^ dir == DIRECTION_TYPE_FLAG {
 		return
 	}
 	snake.UserDir = dir
 
+
+	nextHeadXPos := snake.Head.X
+	nextHeadYPos := snake.Head.Y
+
+	switch(snake.UserDir) {
+	case LEFT:
+		nextHeadXPos -= 1
+	case RIGHT:
+		nextHeadXPos += 1
+	case UP:
+		nextHeadYPos -= 1
+	case DOWN:
+		nextHeadYPos += 1
+	}
+
+	nextHeadXPos = (nextHeadXPos + board.Width) % board.Width
+	nextHeadYPos = (nextHeadYPos + board.Height) % board.Height
+
+	setNextLocation(board, &snake.Head, nextHeadXPos, nextHeadYPos)
+
 }
 
 
-func updateSnakeDir(board *Board, coord *Coord) {
-	prevInfo := getSpot(board, *coord) & DIRECTION_TYPE_FLAG
-	switch(prevInfo) {
-	case LEFT:
-		coord.X -= 1
-	case RIGHT:
-		coord.X += 1
-	case UP:
-		coord.Y -= 1
-	case DOWN:
-		coord.Y += 1
-	}
+func setNextLocation(board *Board, tile *Coord, x, y int) {
+	setSpot(board, *tile, getSpot(board, *tile) &^ RESETCOORD_FLAG)
+	setSpot(board, *tile, getSpot(board, *tile) | x << COORD_X_SHIFT| y << COORD_Y_SHIFT)
+}
 
-	coord.X = (coord.X + board.Width) % board.Width
-	coord.Y = (coord.Y + board.Height) % board.Height
+
+func updateSnakeTile(board *Board, coord *Coord) {
+	prevInfo := getSpot(board, *coord)
+	newX := (prevInfo >> COORD_X_SHIFT) & COORD_FLAG
+	newY := (prevInfo >> COORD_Y_SHIFT) & COORD_FLAG
+	coord.X = newX
+	coord.Y = newY
 }
 
 
@@ -138,7 +157,7 @@ func cutHalf(board *Board, snake *Snake) int {
 	halfSnake := snake.SnakeSize / 2
 	for range halfSnake {
 		setSpot(board, snake.Tail, getSpot(board, snake.Tail) &^ OBJECT_TYPE_FLAG | DECAY_TAIL)
-		updateSnakeDir(board, &snake.Tail)
+		updateSnakeTile(board, &snake.Tail)
 	}
 	return snake.SnakeSize - halfSnake
 
@@ -147,9 +166,9 @@ func cutHalf(board *Board, snake *Snake) int {
 
 func UpdateGame(board *Board) {
 	for _, snake := range board.Snakes {
-		setSpot(board, snake.Head, getSpot(board, snake.Head) &^ DIRECTION_TYPE_FLAG | snake.UserDir)
-		updateSnakeDir(board, &snake.Head)
-
+		previousSpot := Coord{snake.Head.X, snake.Head.Y}
+		UpdateUserDir(board, snake, snake.UserDir)
+		updateSnakeTile(board, &snake.Head)
 		target := getSpot(board, snake.Head) & OBJECT_TYPE_FLAG
 
 		switch (target) {
@@ -169,13 +188,22 @@ func UpdateGame(board *Board) {
 
 		case PORTAL_BLUE, PORTAL_ORANGE:
 			portalInfo := getSpot(board, snake.Head)
-			snake.Head.X = (portalInfo >> COORD_X_SHIFT) & COORD_FLAG 
-			snake.Head.Y = (portalInfo >> COORD_Y_SHIFT) & COORD_FLAG 
-			copyHead := Coord{ snake.Head.X, snake.Head.Y }
-			prevInfo := getSpot(board, copyHead)
-			setSpot(board, snake.Head, getSpot(board, snake.Head) &^ DIRECTION_TYPE_FLAG | snake.UserDir)
-			updateSnakeDir(board, &snake.Head)
-			setSpot(board, copyHead, prevInfo)
+			otherPortalX := (portalInfo >> COORD_X_SHIFT) & COORD_FLAG 
+			otherPortalY := (portalInfo >> COORD_Y_SHIFT) & COORD_FLAG 
+			switch(snake.UserDir) {
+			case LEFT:
+				otherPortalX -= 1
+			case RIGHT:
+				otherPortalX += 1
+			case UP:
+				otherPortalY -= 1
+			case DOWN:
+				otherPortalY += 1
+			}
+			snake.Head.X = otherPortalX
+			snake.Head.Y = otherPortalY
+			setNextLocation(board, &previousSpot, otherPortalX, otherPortalY)
+			setSpot(board, snake.Head, SNAKE)
 			shrinkSnake(board, snake)
 
 		case HALF_ME:
@@ -186,14 +214,13 @@ func UpdateGame(board *Board) {
 		default:
 			shrinkSnake(board, snake)
 		}
-
-		setSpot(board, snake.Head, SNAKE | snake.UserDir)
+		setSpot(board, snake.Head, SNAKE)
 	}
 }
 
 func shrinkSnake(board *Board, snake *Snake) {
 	tailPos := snake.Tail
-	updateSnakeDir(board, &snake.Tail)
+	updateSnakeTile(board, &snake.Tail)
 	setSpot(board, tailPos, NOTHING)
 }
 
