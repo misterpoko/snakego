@@ -3,6 +3,7 @@ package game
 import "fmt"
 import "math/rand/v2"
 
+const META_GAME_GRID_SIZE = 2
 
 type Coord struct {
 	X, Y int
@@ -14,6 +15,7 @@ type Board struct {
 	Grid [][]int
 	Snakes []*Snake
 	Updates []*Coord
+	TileNumber int
 }
 
 
@@ -58,7 +60,7 @@ const (
 
 
 
-func CreateBoard(width, height int) *Board {
+func CreateBoard(width, height, tileNumber int) *Board {
 	grid := make([][]int, height)
 	for i := range(grid) {
 		grid[i] = make([]int, width)
@@ -70,9 +72,10 @@ func CreateBoard(width, height int) *Board {
 		Width: width,
 		Height: height,
 		Grid: grid,
+		TileNumber: tileNumber,
 	}
 
-	for range 20 {
+	for range width/5 {
 		createObject(&board, APPLE)
 	}
 
@@ -200,6 +203,9 @@ func UpdateGame(board *Board) {
 			case DOWN:
 				otherPortalY += 1
 			}
+
+			otherPortalX = (otherPortalX + board.Width) % board.Width
+			otherPortalY = (otherPortalY + board.Height) % board.Height
 			snake.Head.X = otherPortalX
 			snake.Head.Y = otherPortalY
 			setNextLocation(board, &previousSpot, otherPortalX, otherPortalY)
@@ -228,16 +234,18 @@ func shrinkSnake(board *Board, snake *Snake) {
 func printBoarder(board *Board) {
 	boarderValue := "\u2588"
 
-	for i := 0; i < board.Height + 2; i++ {
-		fmt.Printf("\033[%d;%dH%s", i, 0, boarderValue)
-		fmt.Printf("\033[%d;%dH%s", i, board.Width * 2 + 1, boarderValue)
+	offSetY := 1 + board.TileNumber/META_GAME_GRID_SIZE*(board.Height+2)
+	offsetX := 1 + board.TileNumber%META_GAME_GRID_SIZE*(board.Width*2+2)
+
+	for i := 0; i < board.Height+2; i++ {
+		fmt.Printf("\033[%d;%dH%s", i+offSetY, offsetX, boarderValue)
+		fmt.Printf("\033[%d;%dH%s", i+offSetY, offsetX+board.Width*2+1, boarderValue)
 	}
 
-	for i := 0; i < board.Width + 1; i++ {
-		fmt.Printf("\033[%d;%dH%s", 0, i * 2, boarderValue + boarderValue)
-		fmt.Printf("\033[%d;%dH%s", board.Height + 2, i * 2, boarderValue + boarderValue)
+	for i := 0; i < board.Width+1; i++ {
+		fmt.Printf("\033[%d;%dH%s", offSetY, offsetX+i*2, boarderValue+boarderValue)
+		fmt.Printf("\033[%d;%dH%s", offSetY+board.Height+1, offsetX+i*2, boarderValue+boarderValue)
 	}
-
 }
 
 
@@ -259,7 +267,11 @@ func printSpot(board *Board, coord Coord) {
 		toPrint = "\033[38;2;0;120;255m\u25C9\033[0m"   // blue ◉
 
 	}
-	fmt.Printf("\033[%d;%dH%s", coord.Y + 2, coord.X * 2 + 2, toPrint)
+
+	offSetY := 2 + board.TileNumber/META_GAME_GRID_SIZE*(board.Height+2)
+	offsetX := 2 + board.TileNumber%META_GAME_GRID_SIZE*(board.Width*2+2)
+
+	fmt.Printf("\033[%d;%dH%s", coord.Y+offSetY, coord.X*2+offsetX, toPrint)
 }
 
 

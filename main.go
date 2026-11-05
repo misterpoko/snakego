@@ -7,10 +7,12 @@ import "fmt"
 
 func main() {
 
+	letGameSize := 25
+
 	fmt.Print("\033[?25l") // hide cursor
 	fmt.Print("\033[H\033[2J") // clear screen
-	board := game.CreateBoard(25, 26)
-	snake := game.CreateSnake(board)
+	board0 := game.CreateBoard(letGameSize, letGameSize, 0)
+	snake0 := game.CreateSnake(board0)
 
 	keys, restore, err := game.StartInput()
 	if err != nil {
@@ -30,11 +32,11 @@ func main() {
 				fmt.Print("\033[?25h")   // show cursor again
 				return
 			}
-			game.UpdateUserDir(board, snake, k)
+			game.UpdateUserDir(board0, snake0, k)
 
 		case <-ticker.C:
-			game.UpdateGame(board)
-			game.PrintBoard(board)
+			game.UpdateGame(board0)
+			game.PrintBoard(board0)
 		}
 	}
 
