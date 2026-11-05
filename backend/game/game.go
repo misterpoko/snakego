@@ -156,7 +156,7 @@ func updateSnakeTile(board *Board, coord *Coord) {
 }
 
 
-func cutHalf(board *Board, snake *Snake) int {
+func updateTailToDecay(board *Board, snake *Snake) int {
 	halfSnake := snake.SnakeSize / 2
 	for range halfSnake {
 		setSpot(board, snake.Tail, getSpot(board, snake.Tail) &^ OBJECT_TYPE_FLAG | DECAY_TAIL)
@@ -169,6 +169,9 @@ func cutHalf(board *Board, snake *Snake) int {
 
 func UpdateGame(board *Board) {
 	for _, snake := range board.Snakes {
+		if snake.SnakeSize == 0 {
+			continue
+		}
 		previousSpot := Coord{snake.Head.X, snake.Head.Y}
 		UpdateUserDir(board, snake, snake.UserDir)
 		updateSnakeTile(board, &snake.Head)
@@ -176,55 +179,83 @@ func UpdateGame(board *Board) {
 
 		switch (target) {
 		case SNAKE:
-			fmt.Print("\033[?25h")
-			panic("you lose")
+			hitWall(board, snake)
+			continue
+
 		case APPLE:
-			snake.SnakeSize++
-			createObject(board, APPLE)
+			eatApple(board, snake)
+
 		case DECAY_TAIL:
-			shrinkSnake(board, snake)
-			if snake.SnakeSize == 1  {
-				break
-			}
-			snake.SnakeSize--
-			shrinkSnake(board, snake)
+			shrinkByOne(board, snake)
 
 		case PORTAL_BLUE, PORTAL_ORANGE:
-			portalInfo := getSpot(board, snake.Head)
-			otherPortalX := (portalInfo >> COORD_X_SHIFT) & COORD_FLAG 
-			otherPortalY := (portalInfo >> COORD_Y_SHIFT) & COORD_FLAG 
-			switch(snake.UserDir) {
-			case LEFT:
-				otherPortalX -= 1
-			case RIGHT:
-				otherPortalX += 1
-			case UP:
-				otherPortalY -= 1
-			case DOWN:
-				otherPortalY += 1
-			}
-
-			otherPortalX = (otherPortalX + board.Width) % board.Width
-			otherPortalY = (otherPortalY + board.Height) % board.Height
-			snake.Head.X = otherPortalX
-			snake.Head.Y = otherPortalY
-			setNextLocation(board, &previousSpot, otherPortalX, otherPortalY)
-			setSpot(board, snake.Head, SNAKE)
-			shrinkSnake(board, snake)
+			travelPortal(board, snake, previousSpot)
 
 		case HALF_ME:
-			snake.SnakeSize = cutHalf(board, snake)
-			createObject(board, HALF_ME)
-			shrinkSnake(board, snake)
+			cutHalf(board, snake)
 
 		default:
-			shrinkSnake(board, snake)
+			updateTail(board, snake)
 		}
 		setSpot(board, snake.Head, SNAKE)
 	}
 }
 
-func shrinkSnake(board *Board, snake *Snake) {
+func hitWall(board *Board,snake *Snake) {
+
+	halfSnake := snake.SnakeSize
+	for range halfSnake {
+		setSpot(board, snake.Tail, getSpot(board, snake.Tail) &^ OBJECT_TYPE_FLAG | DECAY_TAIL)
+		updateSnakeTile(board, &snake.Tail)
+	}
+	snake.SnakeSize = 0
+}
+
+func eatApple(board *Board,snake *Snake) {
+	snake.SnakeSize++
+	createObject(board, APPLE)
+}
+
+func cutHalf(board *Board,snake *Snake) {
+	snake.SnakeSize = updateTailToDecay(board, snake)
+	createObject(board, HALF_ME)
+	updateTail(board, snake)
+}
+
+func shrinkByOne(board *Board, snake *Snake) {
+	updateTail(board, snake)
+	if snake.SnakeSize == 1 {
+		return
+	}
+	snake.SnakeSize--
+	updateTail(board, snake)
+}
+
+func travelPortal(board *Board, snake *Snake, previousSpot Coord) {
+	portalInfo := getSpot(board, snake.Head)
+	otherPortalX := (portalInfo >> COORD_X_SHIFT) & COORD_FLAG
+	otherPortalY := (portalInfo >> COORD_Y_SHIFT) & COORD_FLAG
+	switch snake.UserDir {
+	case LEFT:
+		otherPortalX -= 1
+	case RIGHT:
+		otherPortalX += 1
+	case UP:
+		otherPortalY -= 1
+	case DOWN:
+		otherPortalY += 1
+	}
+
+	otherPortalX = (otherPortalX + board.Width) % board.Width
+	otherPortalY = (otherPortalY + board.Height) % board.Height
+	snake.Head.X = otherPortalX
+	snake.Head.Y = otherPortalY
+	setNextLocation(board, &previousSpot, otherPortalX, otherPortalY)
+	setSpot(board, snake.Head, SNAKE)
+	updateTail(board, snake)
+}
+
+func updateTail(board *Board, snake *Snake) {
 	tailPos := snake.Tail
 	updateSnakeTile(board, &snake.Tail)
 	setSpot(board, tailPos, NOTHING)
