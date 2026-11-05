@@ -25,6 +25,7 @@ type Snake struct {
 }
 
 
+//0-2
 const (
 	OBJECT_TYPE_FLAG = 0b111
 	NOTHING = 	0b000
@@ -32,8 +33,11 @@ const (
 	APPLE = 	0b010
 	HALF_ME = 	0b011
 	DECAY_TAIL = 	0b100
+	PORTAL_ORANGE = 	0b101
+	PORTAL_BLUE = 	0b110
 )
 
+//3-5
 const (
 	DIRECTION_SHIFT = 3
 	DIRECTION_TYPE_FLAG = 0b11 << DIRECTION_SHIFT
@@ -41,6 +45,13 @@ const (
 	DOWN = 	0b11 << DIRECTION_SHIFT
 	LEFT = 	0b10 << DIRECTION_SHIFT
 	RIGHT = 0b01 << DIRECTION_SHIFT
+)
+
+//8-24
+const (
+	COORD_X_SHIFT = 16
+	COORD_Y_SHIFT = 8
+	COORD_FLAG = 0b1111_1111
 )
 
 
@@ -65,6 +76,8 @@ func CreateBoard(width, height int) *Board {
 
 	createObject(&board, HALF_ME)
 
+	createPortal(&board)
+
 
 	for i := 0; i < height; i++ {
 		for j := 0; j < width; j++ {
@@ -74,6 +87,15 @@ func CreateBoard(width, height int) *Board {
 	printBoarder(&board)
 
 	return &board
+}
+
+func createPortal(board *Board) {
+	bluePortal := createObject(board, PORTAL_ORANGE)
+	orangePortal := createObject(board, PORTAL_BLUE)
+	orangeX, orangeY := orangePortal.X, orangePortal.Y
+	blueX, blueY := bluePortal.X, bluePortal.Y
+	setSpot(board, *bluePortal, getSpot(board, *bluePortal)|orangeX<<COORD_X_SHIFT|orangeY<<COORD_Y_SHIFT)
+	setSpot(board, *orangePortal, getSpot(board, *orangePortal)|blueX<<COORD_X_SHIFT|blueY<<COORD_Y_SHIFT)
 }
 
 func PrintBoard(board *Board) {
@@ -144,10 +166,23 @@ func UpdateGame(board *Board) {
 			}
 			snake.SnakeSize--
 			shrinkSnake(board, snake)
+
+		case PORTAL_BLUE, PORTAL_ORANGE:
+			portalInfo := getSpot(board, snake.Head)
+			snake.Head.X = (portalInfo >> COORD_X_SHIFT) & COORD_FLAG 
+			snake.Head.Y = (portalInfo >> COORD_Y_SHIFT) & COORD_FLAG 
+			copyHead := Coord{ snake.Head.X, snake.Head.Y }
+			prevInfo := getSpot(board, copyHead)
+			setSpot(board, snake.Head, getSpot(board, snake.Head) &^ DIRECTION_TYPE_FLAG | snake.UserDir)
+			updateSnakeDir(board, &snake.Head)
+			setSpot(board, copyHead, prevInfo)
+			shrinkSnake(board, snake)
+
 		case HALF_ME:
 			snake.SnakeSize = cutHalf(board, snake)
 			createObject(board, HALF_ME)
-			fallthrough
+			shrinkSnake(board, snake)
+
 		default:
 			shrinkSnake(board, snake)
 		}
@@ -191,6 +226,10 @@ func printSpot(board *Board, coord Coord) {
 		toPrint = "\u25D0"
 	case DECAY_TAIL:
 		toPrint = "\033[38;2;139;69;19m\u25A0\033[0m"
+	case PORTAL_ORANGE:
+		toPrint = "\033[38;2;255;140;0m\u25C9\033[0m"   // orange ◉
+	case PORTAL_BLUE:
+		toPrint = "\033[38;2;0;120;255m\u25C9\033[0m"   // blue ◉
 
 	}
 	fmt.Printf("\033[%d;%dH%s", coord.Y + 2, coord.X * 2 + 2, toPrint)
@@ -212,12 +251,13 @@ func availableSpot(board *Board, coord Coord) bool {
 	return board.Grid[coord.Y][coord.X] == 0
 }
 
-func createObject(board *Board, givenType int) {
+func createObject(board *Board, givenType int) *Coord {
 	potentialSpot := Coord{rand.IntN(board.Width), rand.IntN(board.Height)}
 	for !availableSpot(board, potentialSpot) {
 		potentialSpot = Coord{rand.IntN(board.Width), rand.IntN(board.Height)}
 	}
 	setSpot(board, potentialSpot, givenType)
+	return &potentialSpot
 }
 
 
