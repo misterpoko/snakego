@@ -1,8 +1,8 @@
 package game
 
 import (
-	"os"
 	"golang.org/x/term"
+	"os"
 )
 
 const Quit = -1

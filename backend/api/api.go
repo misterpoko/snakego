@@ -28,7 +28,7 @@ var addSnakeCh = make(chan struct{})
 func createGame(w http.ResponseWriter, r *http.Request) {
 	letGameSize := 25
 
-	fmt.Print("\033[?25l") // hide cursor
+	fmt.Print("\033[?25l")     // hide cursor
 	fmt.Print("\033[H\033[2J") // clear screen
 	board0 := game.CreateBoard(letGameSize, letGameSize, 0)
 
@@ -61,9 +61,8 @@ func addSnake(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("snake added"))
 }
 
-
 func quit(w http.ResponseWriter, r *http.Request) {
-	fmt.Print("\033[?25h") // show cursor again
+	fmt.Print("\033[?25h")     // show cursor again
 	fmt.Print("\033[H\033[2J") // clear screen
 	os.Exit(0)
 }
@@ -88,10 +87,6 @@ func changeDir(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-
-
-
-
 func Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /quit", quit)
@@ -101,8 +96,6 @@ func Routes() *http.ServeMux {
 	return mux
 }
 
-
 func Start() {
 	http.ListenAndServe(":8080", Routes())
 }
-
