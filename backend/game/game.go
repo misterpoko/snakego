@@ -137,18 +137,29 @@ func UpdateGame(board *Board) {
 		case APPLE:
 			snake.SnakeSize++
 			createObject(board, APPLE)
+		case DECAY_TAIL:
+			shrinkSnake(board, snake)
+			if snake.SnakeSize == 1  {
+				break
+			}
+			snake.SnakeSize--
+			shrinkSnake(board, snake)
 		case HALF_ME:
 			snake.SnakeSize = cutHalf(board, snake)
 			createObject(board, HALF_ME)
 			fallthrough
 		default:
-			tailPos := snake.Tail
-			updateSnakeDir(board, &snake.Tail)
-			setSpot(board, tailPos, NOTHING)
+			shrinkSnake(board, snake)
 		}
 
 		setSpot(board, snake.Head, SNAKE | snake.UserDir)
 	}
+}
+
+func shrinkSnake(board *Board, snake *Snake) {
+	tailPos := snake.Tail
+	updateSnakeDir(board, &snake.Tail)
+	setSpot(board, tailPos, NOTHING)
 }
 
 
