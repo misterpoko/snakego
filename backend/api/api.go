@@ -1,14 +1,27 @@
 package api
 
-
-
 import (
-	"net/http"
-	"snakego/backend/game"
+	"encoding/json"
 	"fmt"
-	"time"
+	"net/http"
 	"os"
+	"snakego/backend/game"
+	"time"
 )
+
+type dirCommand struct {
+	Snake int
+	Dir   int
+}
+
+var dirCh = make(chan dirCommand)
+
+var dirNames = map[string]int{
+	"up":    game.UP,
+	"down":  game.DOWN,
+	"left":  game.LEFT,
+	"right": game.RIGHT,
+}
 
 var addSnakeCh = make(chan struct{})
 
@@ -25,23 +38,16 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 
 func startGameLoop(board *game.Board) {
 
-	keys, restore, err := game.StartInput()
-	if err != nil {
-		panic(err)
-	}
-	defer restore()
-
 	ticker := time.NewTicker(167 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
-		case k := <-keys:
-			for _, snake := range board.Snakes {
-				game.UpdateUserDir(board, snake, k)
-			}
 
 		case <-addSnakeCh:
 			board.Snakes = append(board.Snakes, game.CreateSnake(board))
+
+		case info := <-dirCh:
+			game.UpdateUserDir(board, board.Snakes[info.Snake], info.Dir)
 
 		case <-ticker.C:
 			game.UpdateGame(board)
@@ -62,6 +68,27 @@ func quit(w http.ResponseWriter, r *http.Request) {
 	os.Exit(0)
 }
 
+func changeDir(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Snake int    `json:"snake"`
+		Dir   string `json:"dir"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	dir, ok := dirNames[req.Dir]
+	if !ok {
+		http.Error(w, "dir must be up, down, left or right", http.StatusBadRequest)
+		return
+	}
+
+	dirCh <- dirCommand{Snake: req.Snake, Dir: dir}
+	w.Write([]byte("ok"))
+}
+
+
 
 
 
@@ -70,6 +97,7 @@ func Routes() *http.ServeMux {
 	mux.HandleFunc("GET /quit", quit)
 	mux.HandleFunc("GET /createGame", createGame)
 	mux.HandleFunc("POST /addSnake", addSnake)
+	mux.HandleFunc("POST /changeDir", changeDir)
 	return mux
 }
 
