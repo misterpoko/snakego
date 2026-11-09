@@ -161,29 +161,35 @@ func UpdateGame(board *Board) {
 		previousSpot := Coord{snake.Head.X, snake.Head.Y}
 		UpdateUserDir(board, snake, snake.UserDir)
 		updateSnakeTile(board, &snake.Head)
-		target := getSpot(board, snake.Head) & OBJECT_TYPE_FLAG
-
-		switch target {
-		case SNAKE:
-			hitWall(board, snake)
-			continue
-
-		case APPLE:
-			eatApple(board, snake)
-
-		case DECAY_TAIL:
-			shrinkByOne(board, snake)
-
-		case PORTAL_BLUE, PORTAL_ORANGE:
-			travelPortal(board, snake, previousSpot)
-
-		case HALF_ME:
-			cutHalf(board, snake)
-
-		default:
-			updateTail(board, snake)
+		checkHeadCollision(board, snake, previousSpot)
+		if (getSpot(board, snake.Head) | OBJECT_TYPE_FLAG) != DECAY_TAIL {
+			setSpot(board, snake.Head, SNAKE)
 		}
-		setSpot(board, snake.Head, SNAKE)
+	}
+}
+
+func checkHeadCollision(board *Board, snake *Snake, previousSpot Coord) {
+	target := getSpot(board, snake.Head) & OBJECT_TYPE_FLAG
+
+	switch target {
+	case SNAKE:
+		hitWall(board, snake)
+		return
+
+	case APPLE:
+		eatApple(board, snake)
+
+	case DECAY_TAIL:
+		shrinkByOne(board, snake)
+
+	case PORTAL_BLUE, PORTAL_ORANGE:
+		travelPortal(board, snake, previousSpot)
+
+	case HALF_ME:
+		cutHalf(board, snake)
+
+	default:
+		updateTail(board, snake)
 	}
 }
 
@@ -237,6 +243,8 @@ func travelPortal(board *Board, snake *Snake, previousSpot Coord) {
 	snake.Head.X = otherPortalX
 	snake.Head.Y = otherPortalY
 	setNextLocation(board, &previousSpot, otherPortalX, otherPortalY)
+	checkHeadCollision(board, snake, previousSpot)
+	snake.SnakeSize--
 	setSpot(board, snake.Head, SNAKE)
 	updateTail(board, snake)
 }
