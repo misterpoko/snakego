@@ -1,0 +1,17 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(25, 20px);
+  grid-template-rows: repeat(25, 20px);
+  gap: 1px;
+  width: fit-content;
+  background: #222; /* the color that shows through the gaps, as grid lines */
+}
+
+.cell {
+  background: black;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

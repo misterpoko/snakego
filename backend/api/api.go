@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
+	"slices"
 	"snakego/backend/game"
 	"time"
 )
@@ -37,7 +37,7 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 
 func startGameLoop(board *game.Board) {
 
-	ticker := time.NewTicker(167 * time.Millisecond)
+	ticker := time.NewTicker(334 * time.Millisecond)
 	defer ticker.Stop()
 	for range ticker.C {
 		game.UpdateGame(board)
@@ -46,14 +46,21 @@ func startGameLoop(board *game.Board) {
 }
 
 func addSnake(w http.ResponseWriter, r *http.Request) {
-	gameStateInfo.Snakes = append(gameStateInfo.Snakes, game.CreateSnake(gameStateInfo))
-	w.Write([]byte("snake added"))
+	snake := game.CreateSnake(gameStateInfo)
+	idx := slices.Index(gameStateInfo.Snakes, snake)
+	snakeNumber, err := json.Marshal(dirCommand{Snake: idx, Dir: -1})
+	if err != nil {
+		fmt.Println("trouble adding snake")
+	}
+	w.Write([]byte(snakeNumber))
 }
 
-func destroyAllGames(w http.ResponseWriter, r *http.Request) {
+func destroyCurrentGame(w http.ResponseWriter, r *http.Request) {
 	fmt.Print("\033[?25h")     // show cursor again
 	fmt.Print("\033[H\033[2J") // clear screen
-	os.Exit(0)
+	gameStateInfo.Snakes = nil
+	gameStateInfo.Grid = nil
+	gameStateInfo.Updates = nil
 }
 
 func changeDir(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +100,9 @@ func gameInfo(w http.ResponseWriter, r *http.Request) {
 
 func Routes() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /quitAll", destroyAllGames)
+	mux.HandleFunc("GET /quitAll", destroyCurrentGame)
 	mux.HandleFunc("GET /createGame", createGame)
-	mux.HandleFunc("POST /addSnake", addSnake)
+	mux.HandleFunc("GET /addSnake", addSnake)
 	mux.HandleFunc("POST /changeDir", changeDir)
 	mux.HandleFunc("GET /gameInfo", gameInfo)
 	return mux
