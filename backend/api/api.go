@@ -37,7 +37,7 @@ func createGame(w http.ResponseWriter, r *http.Request) {
 
 func startGameLoop(board *game.Board) {
 
-	ticker := time.NewTicker(334 * time.Millisecond)
+	ticker := time.NewTicker(167 * time.Millisecond)
 	defer ticker.Stop()
 	for range ticker.C {
 		game.UpdateGame(board)
